@@ -437,6 +437,7 @@ class Pokestop(BaseModel):
 
         return pokestops
 
+
 class Gym(BaseModel):
     UNCONTESTED = 0
     TEAM_MYSTIC = 1
@@ -516,6 +517,7 @@ class Gym(BaseModel):
         gc.enable()
 
         return gyms
+
 
 class ScannedLocation(BaseModel):
     latitude = DoubleField()
