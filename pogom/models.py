@@ -404,35 +404,22 @@ class Pokestop(BaseModel):
 
     @staticmethod  # wip
     def get_new_stops(swLat, swLng, neLat, neLng, pokestopSwLat, pokestopSwLng, pokestopNeLat, pokestopNeLng):
-        directionHor = ''
-        directionVert = ''
-        if neLat > pokestopNeLat:
-            directionHor = 'North'
-        elif neLat < pokestopNeLat:
-            directionHor = 'South'
-        if swLng > pokestopSwLng:
-            directionVert = 'East'
-        elif swLng < pokestopSwLng:
-            directionVert = 'West'
-
-        # print directionHor + directionVert
-
         query = (Pokestop
                  .select()
-                 .where((Pokestop.latitude >= swLat) & 
+                 .where((Pokestop.latitude >= swLat) &
                         (Pokestop.longitude >= swLng) &
                         (Pokestop.latitude <= neLat) &
                         (Pokestop.longitude <= neLng))
                  .dicts())
 
         exquery = (Pokestop
-                 .select()
-                 .where((Pokestop.latitude >= pokestopSwLat) &
-                        (Pokestop.longitude >= pokestopSwLng) &
-                        (Pokestop.latitude <= pokestopNeLat) &
-                        (Pokestop.longitude <= pokestopNeLng))
-                 .dicts())
-   
+                   .select()
+                   .where((Pokestop.latitude >= pokestopSwLat) &
+                          (Pokestop.longitude >= pokestopSwLng) &
+                          (Pokestop.latitude <= pokestopNeLat) &
+                          (Pokestop.longitude <= pokestopNeLng))
+                   .dicts())
+
         query = [x for x in query if x not in exquery]
 
         # Performance: Disable the garbage collector prior to creating a (potentially) large dict with append()
@@ -449,8 +436,6 @@ class Pokestop(BaseModel):
         gc.enable()
 
         return pokestops
-
-
 
 class Gym(BaseModel):
     UNCONTESTED = 0
@@ -531,7 +516,6 @@ class Gym(BaseModel):
         gc.enable()
 
         return gyms
-
 
 class ScannedLocation(BaseModel):
     latitude = DoubleField()
