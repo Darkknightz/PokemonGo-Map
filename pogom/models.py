@@ -443,7 +443,7 @@ class Gym(BaseModel):
                                 (Gym.longitude >= oSwLng) &
                                 (Gym.latitude <= oNeLat) &
                                 (Gym.longitude <= oNeLng)))
-                        .dicts())
+                       .dicts())
 
         else:
             results = (Gym
