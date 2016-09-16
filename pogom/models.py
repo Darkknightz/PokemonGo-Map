@@ -359,7 +359,7 @@ class Pokestop(BaseModel):
                             (Pokestop.longitude >= swLng) &
                             (Pokestop.latitude <= neLat) &
                             (Pokestop.longitude <= neLng) &
-                            (Pokestop.last_modified > time.localtime(timestamp / 1000)))
+                            (Pokestop.last_modified > datetime.utcfromtimestamp(timestamp / 1000)))
                      .dicts())
         elif oSwLat > "" and oSwLng > "" and oNeLat > "" and oNeLng > "":
             query = (Pokestop
@@ -436,7 +436,7 @@ class Gym(BaseModel):
                               (Gym.longitude >= swLng) &
                               (Gym.latitude <= neLat) &
                               (Gym.longitude <= neLng) &
-                              (Gym.last_modified > time.localtime(timestamp / 1000)))
+                              (Gym.last_modified > datetime.utcfromtimestamp(timestamp / 1000)))
                        .dicts())
         elif oSwLat > "" and oSwLng > "" and oNeLat > "" and oNeLng > "":
             results = (Gym
