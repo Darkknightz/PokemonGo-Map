@@ -89,6 +89,17 @@ class Pogom(Flask):
         if args.on_demand_timeout > 0:
             self.search_control.clear()
         d = {}
+
+        # Request time of this request
+        d['timestamp'] = datetime.utcnow()
+
+        # Request time of previous request
+        if request.args.get('timestamp'):
+            timestamp = float(request.args.get('timestamp'))
+            timestamp -= 5000  # Overlap
+        else:
+            timestamp = 0
+
         swLat = request.args.get('swLat')
         swLng = request.args.get('swLng')
         neLat = request.args.get('neLat')
@@ -98,16 +109,6 @@ class Pogom(Flask):
         oSwLng = request.args.get('oSwLng')
         oNeLat = request.args.get('oNeLat')
         oNeLng = request.args.get('oNeLng')
-
-        # Request time of previous request
-        if request.args.get('timestamp'):
-            timestamp = int(float(request.args.get('timestamp')))
-            timestamp -= 5000  # Needed some overlap, 5 seconds should be safe
-        else:
-            timestamp = 0
-
-        # Request time of this request
-        d['timestamp'] = datetime.utcnow()
 
         # Previous switch settings
         lastgyms = request.args.get('lastgyms')
