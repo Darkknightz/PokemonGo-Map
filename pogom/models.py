@@ -74,6 +74,73 @@ class BaseModel(flaskDb.Model):
         return results
 
 
+class Spawnpoints(BaseModel):
+
+    latitude = DoubleField()
+    longitude = DoubleField()
+    spawnpoint_id = CharField()
+    time = IntegerField()
+    last_modified = DateTimeField(null=True, index=True, default=datetime.utcnow)
+
+    class Meta:
+        indexes = ((('latitude', 'longitude'), False),)
+        primary_key = CompositeKey('spawnpoint_id', 'time')
+
+    @classmethod
+    def upsert(cls, data):
+        bulk_upsert(cls, data)
+
+    @classmethod
+    def get_count(cls):
+        return len(Spawnpoints.select().limit(1).dicts())
+
+    @classmethod
+    def get_spawnpoints(cls, swLat, swLng, neLat, neLng, timestamp=0, oSwLat=None, oSwLng=None, oNeLat=None, oNeLng=None):
+        query = Spawnpoints.select()
+
+        if timestamp > 0:
+            query = (query
+                     .where(((Spawnpoints.last_modified > datetime.utcfromtimestamp(timestamp / 1000))) &
+                            (Spawnpoints.latitude >= swLat) &
+                            (Spawnpoints.longitude >= swLng) &
+                            (Spawnpoints.latitude <= neLat) &
+                            (Spawnpoints.longitude <= neLng)))
+        elif oSwLat and oSwLng and oNeLat and oNeLng:
+            # Send spawnpoints in view but exclude those within old boundaries. Only send newly uncovered spawnpoints.
+            query = (query
+                     .where((((Spawnpoints.latitude >= swLat) &
+                              (Spawnpoints.longitude >= swLng) &
+                              (Spawnpoints.latitude <= neLat) &
+                              (Spawnpoints.longitude <= neLng))) &
+                            ~((Spawnpoints.latitude >= oSwLat) &
+                              (Spawnpoints.longitude >= oSwLng) &
+                              (Spawnpoints.latitude <= oNeLat) &
+                              (Spawnpoints.longitude <= oNeLng))))
+        elif swLat and swLng and neLat and neLng:
+            query = (query
+                     .where((Spawnpoints.latitude <= neLat) &
+                            (Spawnpoints.latitude >= swLat) &
+                            (Spawnpoints.longitude >= swLng) &
+                            (Spawnpoints.longitude <= neLng)
+                            ))
+
+        query = query.dicts()
+
+        gc.disable()
+
+        spawnpoints = []
+        for p in query:
+            if args.china:
+                p['latitude'], p['longitude'] = \
+                    transform_from_wgs_to_gcj(p['latitude'], p['longitude'])
+            spawnpoints.append(p)
+
+        # Re-enable the GC.
+        gc.enable()
+
+        return spawnpoints
+
+
 class Pokemon(BaseModel):
     # We are base64 encoding the ids delivered by the api
     # because they are too big for sqlite to handle
@@ -752,6 +819,7 @@ def construct_pokemon_dict(pokemons, p, encounter_result, d_t):
 # todo: this probably shouldn't _really_ be in "models" anymore, but w/e
 def parse_map(args, map_dict, step_location, db_update_queue, wh_update_queue, api):
     pokemons = {}
+    spawnpoints = {}
     pokestops = {}
     gyms = {}
     skipped = 0
@@ -818,7 +886,17 @@ def parse_map(args, map_dict, step_location, db_update_queue, wh_update_queue, a
                                                  spawn_point_id=p['spawn_point_id'],
                                                  player_latitude=step_location[0],
                                                  player_longitude=step_location[1])
+
             construct_pokemon_dict(pokemons, p, encounter_result, d_t)
+
+            spawntime = (p['last_modified_timestamp_ms'] // 1000) % 3600
+            spawnpoints[p['spawn_point_id']] = {
+                'spawnpoint_id': p['spawn_point_id'],
+                'latitude': p['latitude'],
+                'longitude': p['longitude'],
+                'time': spawntime
+            }
+
             if args.webhooks:
                 wh_update_queue.put(('pokemon', {
                     'encounter_id': b64encode(str(p['encounter_id'])),
@@ -930,6 +1008,8 @@ def parse_map(args, map_dict, step_location, db_update_queue, wh_update_queue, a
 
     if len(pokemons):
         db_update_queue.put((Pokemon, pokemons))
+    if len(spawnpoints):
+        db_update_queue.put((Spawnpoints, spawnpoints))
     if len(pokestops):
         db_update_queue.put((Pokestop, pokestops))
     if len(gyms):
@@ -1169,13 +1249,13 @@ def bulk_upsert(cls, data):
 def create_tables(db):
     db.connect()
     verify_database_schema(db)
-    db.create_tables([Pokemon, Pokestop, Gym, ScannedLocation, GymDetails, GymMember, GymPokemon, Trainer, MainWorker, WorkerStatus], safe=True)
+    db.create_tables([Spawnpoints, Pokemon, Pokestop, Gym, ScannedLocation, GymDetails, GymMember, GymPokemon, Trainer, MainWorker, WorkerStatus], safe=True)
     db.close()
 
 
 def drop_tables(db):
     db.connect()
-    db.drop_tables([Pokemon, Pokestop, Gym, ScannedLocation, Versions, GymDetails, GymMember, GymPokemon, Trainer, MainWorker, WorkerStatus, Versions], safe=True)
+    db.drop_tables([Spawnpoints, Pokemon, Pokestop, Gym, ScannedLocation, Versions, GymDetails, GymMember, GymPokemon, Trainer, MainWorker, WorkerStatus, Versions], safe=True)
     db.close()
 
 
