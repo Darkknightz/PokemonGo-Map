@@ -95,23 +95,56 @@ class Spawnpoints(BaseModel):
         return len(Spawnpoints.select().limit(1).dicts())
 
     @classmethod
-    def get_spawnpoints(cls, swLat, swLng, neLat, neLng, timestamp=0, oSwLat=None, oSwLng=None, oNeLat=None, oNeLng=None):
+    def get_spawnpoints(cls, swLat, swLng, neLat, neLng, timestamp=0, oSwLat=None, oSwLng=None, oNeLat=None, oNeLng=None, activeonly=False):
         query = Spawnpoints.select(Spawnpoints.latitude, Spawnpoints.longitude, Spawnpoints.spawnpoint_id, Spawnpoints.time, Spawnpoints.count)
 
         if timestamp > 0:
             # If timestamp is known only load modified pokemon
-            results = (Spawnpoints.select(Spawnpoints.spawnpoint_id)
-                       .where(((Spawnpoints.last_modified > datetime.utcfromtimestamp(timestamp / 1000))) &
-                              ((Spawnpoints.latitude >= swLat) &
-                               (Spawnpoints.longitude >= swLng) &
-                               (Spawnpoints.latitude <= neLat) &
-                               (Spawnpoints.longitude <= neLng)))
-                       .dicts())
+            if activeonly:
+                atime = int(((timestamp/1000)) % 3600) + 3900
+                btime = int((calendar.timegm(datetime.utcnow().timetuple())) % 3600) + 3900
+                if atime > 6300: 
+                    atime -= 3600
+                if btime > 6300:
+                    btime -= 3600
+                if atime > btime:
+                    results = (Spawnpoints.select(Spawnpoints.spawnpoint_id)
+                               .where(((Spawnpoints.latitude >= swLat) &
+                                       (Spawnpoints.longitude >= swLng) &
+                                       (Spawnpoints.latitude <= neLat) &
+                                       (Spawnpoints.longitude <= neLng)) &
+                                      ((((Spawnpoints.time) + 2700) <= atime) |
+                                       (((Spawnpoints.time) + 2700) >= btime)))
+                               .dicts())
+                else:
+                    results = (Spawnpoints.select(Spawnpoints.spawnpoint_id)
+                               .where(((Spawnpoints.latitude >= swLat) &
+                                       (Spawnpoints.longitude >= swLng) &
+                                       (Spawnpoints.latitude <= neLat) &
+                                       (Spawnpoints.longitude <= neLng)) &
+                                      ((((Spawnpoints.time) + 2700) >= atime) &
+                                       (((Spawnpoints.time) + 2700) <= btime)))
+                               .dicts())
+
+
+
+
+                log.info('SQL a ' + str(atime))
+                log.info('SQL b ' + str(btime))
+            else:
+                results = (Spawnpoints.select(Spawnpoints.spawnpoint_id)
+                           .where(((Spawnpoints.last_modified > datetime.utcfromtimestamp(timestamp / 1000))) &
+                                  ((Spawnpoints.latitude >= swLat) &
+                                   (epawnpoints.longitude >= swLng) &
+                                   (Spawnpoints.latitude <= neLat) &
+                                   (Spawnpoints.longitude <= neLng)))
+                           .dicts())
+
 
             query = (query
                      .where((Spawnpoints.spawnpoint_id << results)).dicts())
 
-        if oSwLat and oSwLng and oNeLat and oNeLng:
+        elif oSwLat and oSwLng and oNeLat and oNeLng:
             # Send spawnpoints in view but exclude those within old boundaries. Only send newly uncovered spawnpoints.
             query = (query
                      .where((((Spawnpoints.latitude >= swLat) &
@@ -133,6 +166,7 @@ class Spawnpoints(BaseModel):
         query = query.dicts()
         spawnpoints = {}
 
+
         for sp in query:
             key = sp['spawnpoint_id']
             appear_time = Pokemon.get_spawn_time(sp.pop('time'))
@@ -147,10 +181,42 @@ class Spawnpoints(BaseModel):
                 spawnpoints[key]['time'] = appear_time
                 spawnpoints[key]['count'] = count
 
+        log.info(len(spawnpoints))
+        returnpoints = {}
         for sp in spawnpoints.values():
             del sp['count']
+            key = sp['spawnpoint_id']
+            if activeonly:
+                ctime = int((calendar.timegm(datetime.utcnow().timetuple())) % 3600) + 3600
+                ttime = int((timestamp/1000) % 3600) + 3600
+                stime = sp['time'] + 3600
+                if timestamp > 0:
+                    atime = ttime + 300
+                    btime = ctime + 300
+                else:
+                    atime = ctime - 900
+                    btime = ctime + 300
 
-        return list(spawnpoints.values())
+                if atime > 7200:
+                   atime -= 3600
+                elif atime < 3600:
+                   atime += 3600
+
+                if btime > 7200:
+                   btime -= 3600
+
+                # log.info('a ' + str(atime))
+                # log.info('b ' + str(btime))
+                if atime > btime:
+                    if (stime > atime and stime < btime):
+                        continue
+                else:
+                    if (stime < atime or stime > btime):
+                        continue
+
+            returnpoints[key] = sp
+        log.info(len(returnpoints))
+        return list(returnpoints.values())
 
 
 class Pokemon(BaseModel):

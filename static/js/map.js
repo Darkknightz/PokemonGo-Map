@@ -10,9 +10,14 @@ var $selectStyle
 var $selectIconResolution
 var $selectIconSize
 var $selectLuredPokestopsOnly
+var $selectActiveSpawnpointsOnly
 var $selectSearchIconMarker
 var $selectGymMarkerStyle
 var $selectLocationIconMarker
+
+var ctime
+var atime
+var btime
 
 var language = document.documentElement.lang === '' ? 'en' : document.documentElement.lang
 var idToPokemon = {}
@@ -52,6 +57,7 @@ var lastgyms
 var lastpokemon
 var lastslocs
 var lastspawns
+var lastactivespawn
 
 var selectedStyle = 'light'
 
@@ -305,6 +311,8 @@ function initSidebar () {
   $('#scan-here').toggle(Store.get('scanHere'))
   $('#scanned-switch').prop('checked', Store.get('showScanned'))
   $('#spawnpoints-switch').prop('checked', Store.get('showSpawnpoints'))
+  $('#active-spawnpoints-only-switch').val(Store.get('showActiveSpawnpointsOnly'))
+  $('#active-spawnpoints-only-wrapper').toggle(Store.get('showSpawnpoints'))
   $('#ranges-switch').prop('checked', Store.get('showRanges'))
   $('#sound-switch').prop('checked', Store.get('playSound'))
   var searchBox = new google.maps.places.SearchBox(document.getElementById('next-location'))
@@ -874,6 +882,27 @@ function clearStaleMarkers () {
       delete mapData.scanned[key]
     }
   })
+
+  if (Boolean(Store.get('showActiveSpawnpointsOnly'))) {
+    // If not before 15 min or after 15 min remove spawnpoints
+    ctime = parseInt((new Date().getTime() / 1000) % 3600)
+    btime = (ctime + 2700) % 3600
+    atime = ctime + 300
+ 
+    $.each(mapData.spawnpoints, function (key, value) {
+      if (atime < 1200) {
+        if ((mapData.spawnpoints[key]['time'] < btime) && (mapData.spawnpoints[key]['time'] > atime)) {
+          mapData.spawnpoints[key].marker.setMap(null)
+          delete mapData.spawnpoints[key]
+        }
+      } else {
+        if ((mapData.spawnpoints[key]['time'] < btime) || (mapData.spawnpoints[key]['time'] > atime)) {
+          mapData.spawnpoints[key].marker.setMap(null)
+          delete mapData.spawnpoints[key]
+        }
+      }
+    })
+  } 
 }
 
 function showInBoundsMarkers (markers, type) {
@@ -933,6 +962,7 @@ function loadRawData () {
   var loadScanned = Store.get('showScanned')
   var loadSpawnpoints = Store.get('showSpawnpoints')
   var loadLuredOnly = Boolean(Store.get('showLuredPokestopsOnly'))
+  var loadActiveOnly = Boolean(Store.get('showActiveSpawnpointsOnly'))
 
   var bounds = map.getBounds()
   var swPoint = bounds.getSouthWest()
@@ -958,6 +988,7 @@ function loadRawData () {
       'lastslocs': lastslocs,
       'spawnpoints': loadSpawnpoints,
       'lastspawns': lastspawns,
+      'activeonly': loadActiveOnly,
       'swLat': swLat,
       'swLng': swLng,
       'neLat': neLat,
@@ -1537,6 +1568,18 @@ $(function () {
     updateMap()
   })
 
+  $selectActiveSpawnpointsOnly = $('#active-spawnpoints-only-switch')
+
+  $selectActiveSpawnpointsOnly.select2({
+    placeholder: 'Only Show Active Spawnpoints',
+    minimumResultsForSearch: Infinity
+  })
+
+  $selectActiveSpawnpointsOnly.on('change', function () {
+    Store.set('showActiveSpawnpointsOnly', this.value)
+    lastspawns = false
+  })
+
   $selectSearchIconMarker = $('#iconmarker-style')
   $selectLocationIconMarker = $('#locationmarker-style')
 
@@ -1759,9 +1802,24 @@ $(function () {
   $('#scanned-switch').change(function () {
     buildSwitchChangeListener(mapData, ['scanned'], 'showScanned').bind(this)()
   })
+  // $('#spawnpoints-switch').change(function () {
+  //   buildSwitchChangeListener(mapData, ['spawnpoints'], 'showSpawnpoints').bind(this)()
+  // })
   $('#spawnpoints-switch').change(function () {
-    buildSwitchChangeListener(mapData, ['spawnpoints'], 'showSpawnpoints').bind(this)()
+    var options = {
+      'duration': 500
+    }
+    var wrapper2 = $('#active-spawnpoints-only-wrapper')
+    if (this.checked) {
+      wrapper2.show(options)
+    } else {
+      wrapper2.hide(options)
+    }
+    return buildSwitchChangeListener(mapData, ['spawnpoints'], 'showSpawnpoints').bind(this)()
   })
+
+
+
   $('#ranges-switch').change(buildSwitchChangeListener(mapData, ['gyms', 'pokemons', 'pokestops'], 'showRanges'))
 
   $('#pokestops-switch').change(function () {
@@ -1832,7 +1890,7 @@ $(function () {
     })
   }
 
-  // Initialize dataTable in statistics sidebar
+  // Initialize datatable in statistics sidebar
   //   - turn off sorting for the 'icon' column
   //   - initially sort 'name' column alphabetically
 

@@ -124,6 +124,12 @@ class Pogom(Flask):
         else:
             luredonly = False
 
+        if request.args.get('activeonly', 'true') == 'true':
+            activeonly = True
+        else:
+            activeonly = False
+
+
         # Current switch settings saved for next request
         if request.args.get('gyms', 'true') == 'true':
             d['lastgyms'] = request.args.get('gyms', 'true')
@@ -224,11 +230,11 @@ class Pogom(Flask):
 
         if request.args.get('spawnpoints', 'false') == 'true':
             if lastspawns != 'true':
-                d['spawnpoints'] = Spawnpoints.get_spawnpoints(swLat=swLat, swLng=swLng, neLat=neLat, neLng=neLng)
+                d['spawnpoints'] = Spawnpoints.get_spawnpoints(swLat=swLat, swLng=swLng, neLat=neLat, neLng=neLng, activeonly=activeonly)
             else:
-                d['spawnpoints'] = Spawnpoints.get_spawnpoints(swLat=swLat, swLng=swLng, neLat=neLat, neLng=neLng, timestamp=timestamp)
+                d['spawnpoints'] = Spawnpoints.get_spawnpoints(swLat=swLat, swLng=swLng, neLat=neLat, neLng=neLng, timestamp=timestamp, activeonly=activeonly)
                 if newArea:
-                    d['spawnpoints'] = d['spawnpoints'] + (Spawnpoints.get_spawnpoints(swLat, swLng, neLat, neLng, oSwLat=oSwLat, oSwLng=oSwLng, oNeLat=oNeLat, oNeLng=oNeLng))
+                    d['spawnpoints'] = d['spawnpoints'] + (Spawnpoints.get_spawnpoints(swLat, swLng, neLat, neLng, oSwLat=oSwLat, oSwLng=oSwLng, oNeLat=oNeLat, oNeLng=oNeLng, activeonly=activeonly))
 
         if request.args.get('status', 'false') == 'true':
             args = get_args()

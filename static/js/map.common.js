@@ -716,6 +716,10 @@ var StoreOptions = {
     default: false,
     type: StoreTypes.Boolean
   },
+  'showActiveSpawnpointsOnly': {
+    default: 0,
+    type: StoreTypes.Number
+  },
   'showRanges': {
     default: false,
     type: StoreTypes.Boolean
