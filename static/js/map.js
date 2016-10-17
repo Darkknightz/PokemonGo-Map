@@ -18,6 +18,7 @@ var $selectLocationIconMarker
 var ctime
 var atime
 var btime
+var xtime
 
 var language = document.documentElement.lang === '' ? 'en' : document.documentElement.lang
 var idToPokemon = {}
@@ -883,14 +884,32 @@ function clearStaleMarkers () {
     }
   })
 
-  if (Boolean(Store.get('showActiveSpawnpointsOnly'))) {
-    // If not before 15 min or after 15 min remove spawnpoints
+  if (Store.get('showActiveSpawnpointsOnly') > 0) {
     ctime = parseInt((new Date().getTime() / 1000) % 3600)
-    btime = (ctime + 2700) % 3600
-    atime = ctime + 300
+    switch(Store.get('showActiveSpawnpointsOnly')) {
+      case 1:
+        btime = (ctime + 2700) % 3600
+        atime = ctime + 300
+        xtime = 1200
+        break
+      case 2:
+        btime = (ctime + 3000) % 3600
+        atime = ctime + 300
+        xtime = 900
+        break
+      case 3:
+        btime = (ctime + 2700) % 3600
+        atime = ctime
+        xtime = 900
+        break
+      case 4:
+        btime = (ctime + 3000) % 3600
+        atime = ctime 
+        xtime = 600
+    }
  
     $.each(mapData.spawnpoints, function (key, value) {
-      if (atime < 1200) {
+      if (atime < xtime) {
         if ((mapData.spawnpoints[key]['time'] < btime) && (mapData.spawnpoints[key]['time'] > atime)) {
           mapData.spawnpoints[key].marker.setMap(null)
           delete mapData.spawnpoints[key]
@@ -962,7 +981,7 @@ function loadRawData () {
   var loadScanned = Store.get('showScanned')
   var loadSpawnpoints = Store.get('showSpawnpoints')
   var loadLuredOnly = Boolean(Store.get('showLuredPokestopsOnly'))
-  var loadActiveOnly = Boolean(Store.get('showActiveSpawnpointsOnly'))
+  var loadActiveOnly = Store.get('showActiveSpawnpointsOnly')
 
   var bounds = map.getBounds()
   var swPoint = bounds.getSouthWest()

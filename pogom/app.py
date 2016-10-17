@@ -124,11 +124,7 @@ class Pogom(Flask):
         else:
             luredonly = False
 
-        if request.args.get('activeonly', 'true') == 'true':
-            activeonly = True
-        else:
-            activeonly = False
-
+        activeonly = request.args.get('activeonly')
 
         # Current switch settings saved for next request
         if request.args.get('gyms', 'true') == 'true':
